@@ -27,8 +27,9 @@ if [ "${1:-}" = "--restore" ]; then
     usage >&2
     exit 1
   fi
-  RESTORE_DIR=$(CDPATH= cd -- "$RESTORE_DIR" 2>/dev/null && pwd) || {
-    echo "Backup directory does not exist: $RESTORE_DIR" >&2
+  REQUESTED_RESTORE_DIR=$RESTORE_DIR
+  RESTORE_DIR=$(CDPATH= cd -- "$REQUESTED_RESTORE_DIR" 2>/dev/null && pwd) || {
+    echo "Backup directory does not exist: $REQUESTED_RESTORE_DIR" >&2
     exit 1
   }
   if [ ! -f "$RESTORE_DIR/database.dump" ]; then
