@@ -1,13 +1,12 @@
 import "dotenv/config";
 import { mkdir, readdir, rm, stat, chmod } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
 const backupRoot = path.resolve(process.env.BACKUP_DIR || path.join(root, "backups"));
 const retentionDays = Number(process.env.BACKUP_RETENTION_DAYS || 14);
-const container = process.env.DATABASE_BACKUP_CONTAINER || "dil-postgres";
 const database = process.env.POSTGRES_DB || "digital_innovation_lab";
 const user = process.env.POSTGRES_USER || "dil";
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -29,9 +28,8 @@ function streamCommand(command, args, outputPath) {
 }
 
 try {
-  await streamCommand("docker", ["exec", container, "pg_dump", "-U", user, "-d", database, "--format=custom", "--no-owner", "--no-privileges"], path.join(destination, "database.dump"));
-  const media = spawnSync("tar", ["-czf", path.join(destination, "media.tar.gz"), "uploads", "private"], { cwd: root, encoding: "utf8" });
-  if (media.status !== 0) throw new Error(media.stderr || "Unable to archive uploads");
+  await streamCommand("docker", ["compose", "exec", "-T", "db", "pg_dump", "-U", user, "-d", database, "--format=custom", "--no-owner", "--no-privileges"], path.join(destination, "database.dump"));
+  await streamCommand("docker", ["compose", "exec", "-T", "app", "tar", "-czf", "-", "-C", "/app", "uploads", "private"], path.join(destination, "media.tar.gz"));
   await chmod(path.join(destination, "media.tar.gz"), 0o600);
 
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
@@ -45,4 +43,3 @@ try {
   await rm(destination, { recursive: true, force: true });
   throw error;
 }
-
